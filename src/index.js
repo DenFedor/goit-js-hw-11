@@ -1,3 +1,4 @@
+import './sass/main.scss';
 import axios from 'axios';
 import throttle from 'lodash.throttle';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
@@ -5,7 +6,6 @@ import mustache from 'mustache';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 import simpleLightbox from 'simplelightbox';
-import './sass/main.scss';
 
 //CONSTANTS
 const API_KEY = '31235153-11b91783de2de8bcbb11dc69c';
@@ -75,9 +75,6 @@ async function renderGallery(parameters) {
       });
       refs.gallery.insertAdjacentHTML('beforeend', renderedImages);
       lightbox.refresh();
-      setTimeout(() => {
-        refs.loadBtn.classList.remove('visually-hidden');
-      }, 2000);
     } else {
       Notify.failure(
         'Sorry, there are no images matching your search query. Please try again.'
@@ -89,9 +86,13 @@ async function renderGallery(parameters) {
     if (parameters.page == 1) {
       Notify.success(`Hooray! We found ${imagesData.totalHits} images.`);
     }
-    if (imagesData.hits.length < parameters.per_page) {
-      refs.loadBtn.classList.add('visually-hidden');
-    }
+    setTimeout(() => {
+      if (imagesData.hits.length < parameters.per_page) {
+        refs.loadBtn.classList.add('visually-hidden');
+      } else {
+        refs.loadBtn.classList.remove('visually-hidden');
+      }
+    }, 2000);
     totalHits = imagesData.totalHits;
   } catch (error) {
     console.log(error);
@@ -136,10 +137,13 @@ function handleScroll() {
   var scrollableHeight =
     document.documentElement.scrollHeight -
     document.documentElement.clientHeight;
-  var GOLDEN_RATIO = 0.9;
+  var GOLDEN_RATIO = 0.5;
   if (document.documentElement.scrollTop / scrollableHeight > GOLDEN_RATIO) {
     //show button
     refs.scrollToTopBtn.classList.remove('visually-hidden');
+    console.log(document.documentElement.scrollTop);
+    console.log(scrollableHeight);
+    console.log(document.documentElement.scrollTop / scrollableHeight);
   } else {
     //hide button
     refs.scrollToTopBtn.classList.add('visually-hidden');
