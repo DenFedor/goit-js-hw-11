@@ -1,4 +1,5 @@
 import axios from 'axios';
+import throttle from 'lodash.throttle';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import mustache from 'mustache';
 import SimpleLightbox from 'simplelightbox';
@@ -72,9 +73,11 @@ async function renderGallery(parameters) {
         let renderedImage = mustache.render(TEMPLATE, image);
         renderedImages += renderedImage;
       });
-      await refs.gallery.insertAdjacentHTML('beforeend', renderedImages);
+      refs.gallery.insertAdjacentHTML('beforeend', renderedImages);
       lightbox.refresh();
-      refs.loadBtn.classList.remove('visually-hidden');
+      setTimeout(() => {
+        refs.loadBtn.classList.remove('visually-hidden');
+      }, 2000);
     } else {
       Notify.failure(
         'Sorry, there are no images matching your search query. Please try again.'
@@ -127,7 +130,7 @@ refs.loadBtn.addEventListener('click', () => {
 });
 
 //-------------------TO TOP BUTTON--------------------//
-document.addEventListener('scroll', handleScroll);
+document.addEventListener('scroll', throttle(handleScroll, 300));
 
 function handleScroll() {
   var scrollableHeight =
