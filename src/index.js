@@ -72,7 +72,7 @@ async function renderGallery(parameters) {
         let renderedImage = mustache.render(TEMPLATE, image);
         renderedImages += renderedImage;
       });
-      refs.gallery.insertAdjacentHTML('beforeend', renderedImages);
+      await refs.gallery.insertAdjacentHTML('beforeend', renderedImages);
       lightbox.refresh();
       refs.loadBtn.classList.remove('visually-hidden');
     } else {
