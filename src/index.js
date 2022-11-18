@@ -1,74 +1,152 @@
+import axios from 'axios';
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
+import mustache from 'mustache';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
+import simpleLightbox from 'simplelightbox';
+import './sass/main.scss';
 
+//CONSTANTS
 const API_KEY = '31235153-11b91783de2de8bcbb11dc69c';
+const API_URL = 'https://pixabay.com/api/';
 const refs = {
   form: document.querySelector('#search-form'),
   input: document.querySelector('[name="searchQuery"]'),
   gallery: document.querySelector('#gallery'),
   submitBtn: document.querySelector('#submitBtn'),
   loadBtn: document.querySelector('#loadBtn'),
+  scrollToTopBtn: document.querySelector('.scrollToTopBtn'),
 };
+const TEMPLATE = `
+<a href='{{largeImageURL}}' class='gallery__link'>
+  <div class="photo-card">
+    <img src="{{webformatURL}}" alt="{{tags}}" loading="lazy" class="photo-card__img"/>
+    <div class="info">
+      <p class="info-item">
+        <b>Likes</b>
+        <span>{{likes}}</span>
+      </p>
+      <p class="info-item">
+        <b>Views</b>
+        <span>{{views}}</span>
+      </p>
+      <p class="info-item">
+        <b>Comments</b>
+        <span>{{comments}}</span>
+      </p>
+      <p class="info-item">
+        <b>Downloads</b>
+        <span>{{downloads}}</span>
+      </p>
+    </div>
+  </div>
+  </a>
+`;
 const paramsObj = {
   key: API_KEY,
   q: '',
   image_type: 'photo',
   orientation: 'horizontal',
   safesearch: 'true',
+  per_page: '40',
+  page: '1',
 };
-const searchParams = new URLSearchParams(paramsObj);
-let searchString = searchParams.toString();
-console.log(searchParams.toString());
 
-async function fetchImages(search) {
-  const galleryImages = await fetch(`https://pixabay.com/api/?${search}`);
-  return galleryImages;
+let paginationParamObj = {};
+let totalHits = 0;
+let lightbox = new SimpleLightbox('.gallery__link', { scrollZoom: false });
+
+//FETCH IMAGES BY REQUEST
+async function fetchImages(parameters) {
+  const response = await axios.get(API_URL, { params: parameters });
+  return response.data;
 }
 
-fetchImages(paramsObj)
-  .then(images => console.log(images.json()))
-  .catch(error => console.error(error));
+// PROCESS DATA AND RENDER GALLERY
+async function renderGallery(parameters) {
+  let renderedImages = '';
+  try {
+    const imagesData = await fetchImages(parameters);
+    if (imagesData.hits.length != 0) {
+      Object.values(imagesData.hits).forEach(image => {
+        let renderedImage = mustache.render(TEMPLATE, image);
+        renderedImages += renderedImage;
+      });
+      refs.gallery.insertAdjacentHTML('beforeend', renderedImages);
+      lightbox.refresh();
+      refs.loadBtn.classList.remove('visually-hidden');
+    } else {
+      Notify.failure(
+        'Sorry, there are no images matching your search query. Please try again.'
+      );
+      refs.loadBtn.classList.add('visually-hidden');
+      return;
+    }
 
+    if (parameters.page == 1) {
+      Notify.success(`Hooray! We found ${imagesData.totalHits} images.`);
+    }
+    if (imagesData.hits.length < parameters.per_page) {
+      refs.loadBtn.classList.add('visually-hidden');
+    }
+    totalHits = imagesData.totalHits;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+//-------------------LISTENERS--------------------//
+//USER INPUT
 refs.form.addEventListener('input', e => {
   paramsObj.q = e.target.value;
-  console.log(userInput);
 });
-refs.form('submit', {});
-// https://pixabay.com/api/  GET API
-// URL =
-//   'https://pixabay.com/api/?key=' +
-//   API_KEY +
-//   '&q=' +
-//   encodeURIComponent('red roses');
 
-// key - твій унікальний ключ доступу до API.
-// q - термін для пошуку. Те, що буде вводити користувач.
-// image_type - тип зображення. На потрібні тільки фотографії, тому постав значення photo.
-// image_type: "photo"
-// orientation - орієнтація фотографії. Постав значення horizontal.
-// orientation: "horizontal"
-// safesearch - фільтр за віком. Постав значення true.
-// safesearch: "true"
+//SUBMIT AND RENDER GALLERY
+refs.form.addEventListener('submit', e => {
+  e.preventDefault();
+  if (refs.gallery.hasChildNodes) {
+    refs.gallery.replaceChildren();
+  }
+  renderGallery(paramsObj);
+  paginationParamObj = structuredClone(paramsObj);
+});
 
-// https://pixabay.com/api/?key=31235153-11b91783de2de8bcbb11dc69c
-// & q=yellow + flowers
-// & image_type=photo
+//LOAD MORE PAGINATION
+refs.loadBtn.addEventListener('click', () => {
+  paginationParamObj.page = +paginationParamObj.page + 1;
 
-//GALLERY TEMPLATE
-// {/* <div class="photo-card">
-//   <img src="" alt="" loading="lazy" />
-//   <div class="info">
-//     <p class="info-item">
-//       <b>Likes</b>
-//     </p>
-//     <p class="info-item">
-//       <b>Views</b>
-//     </p>
-//     <p class="info-item">
-//       <b>Comments</b>
-//     </p>
-//     <p class="info-item">
-//       <b>Downloads</b>
-//     </p>
-//   </div>
-// </div>; */}
+  let hits = +gallery.childElementCount;
+  if (hits < totalHits) {
+    renderGallery(paginationParamObj);
+  } else {
+    refs.loadBtn.classList.add('visually-hidden');
+    Notify.failure(
+      `We're sorry, but you've reached the end of search results.`
+    );
+  }
+});
+
+//-------------------TO TOP BUTTON--------------------//
+document.addEventListener('scroll', handleScroll);
+
+function handleScroll() {
+  var scrollableHeight =
+    document.documentElement.scrollHeight -
+    document.documentElement.clientHeight;
+  var GOLDEN_RATIO = 0.9;
+  if (document.documentElement.scrollTop / scrollableHeight > GOLDEN_RATIO) {
+    //show button
+    refs.scrollToTopBtn.classList.remove('visually-hidden');
+  } else {
+    //hide button
+    refs.scrollToTopBtn.classList.add('visually-hidden');
+  }
+}
+refs.scrollToTopBtn.addEventListener('click', scrollToTop);
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  });
+}
